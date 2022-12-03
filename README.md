@@ -1,5 +1,8 @@
 ![](logo/logo_radte_large.svg)
 
+# this is a fork to add gene transfers into RADTE
+# UNDER CONSTRUCTIOn!
+
 ## Overview
 **R**econciliation-**A**ssisted **D**ivergence **T**ime **E**stimation (**RADTE** / [rædˈti:](http://ipa-reader.xyz/?text=r%C3%A6d%CB%88ti:&voice=Salli)) is a method to date gene trees with the aid of dated species trees.
 This program can handle a rooted gene tree containing duplication/loss events.
@@ -60,6 +63,8 @@ Passed to `chronos` for divergence time estimation. See `chronos` in the [**ape*
 Passed to `chronos` for divergence time estimation. See `chronos` in the [**ape** documentation](https://www.rdocumentation.org/packages/ape/versions/5.2/topics/chronos).
 #### `--pad_short_edge`
 Prohibit dated branches shorter than this value. If detected, the branch length is readjusted by transferring a small portion of branch length from the parent branch.
+#### `--no-scrolls`
+Leaves (species) should be labeled as `GENUSSPECIES` instead.
 
 ## Example 1: RADTE after NOTUNG
 For input data, see `data/example_notung_01`.

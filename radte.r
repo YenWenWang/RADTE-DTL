@@ -1,6 +1,6 @@
 #!/usr/bin/env Rscript
 
-radte_version = '0.2.0'
+radte_version = '0.2.0-dtl'
 
 run_mode = ifelse(length(commandArgs(trailingOnly=TRUE))==1, 'debug', 'batch')
 #if (run_mode=='debug') install.packages("/Users/kef74yk/Dropbox (Personal)/repos/ape", repos=NULL, type="source")
@@ -84,7 +84,14 @@ save_tree_pdf = function(phy, file, show.age=FALSE, edge_colors=list()) {
     nodelabels(text=phy[['node.label']], col=node_colors, bg='white', cex=0.5)
     invisible(dev.off())
 }
-
+get_species_names_noscrolls = function (phy, sep = "_"){
+  split_names = strsplit(phy[["tip.label"]], sep)
+  species_names = c()
+  for (sn in split_names) {
+    species_names = c(species_names, sn[1])
+  }
+  return(species_names)
+}
 
 cat('RADTE run_mode:', run_mode, '\n')
 if (run_mode=='batch') {
@@ -98,6 +105,7 @@ if (run_mode=='batch') {
     args[['max_age']] = 1000
     args[['chronos_lambda']] = 1
     args[['chronos_model']] = 'discrete'
+    args[['pad_short_edge']] = 0.001
     args[['pad_short_edge']] = 0.001
     if (test_type=='notung') {
         work_dir = '/Users/kef74yk/Dropbox/repos/RADTE/data/example_notung_01'
@@ -116,6 +124,7 @@ if (run_mode=='batch') {
     }
 }
 
+
 if (('generax_nhx' %in% names(args))&('notung_parsable' %in% names(args))) {
     stop('Only one of --notung_parsable and --generax_nhx should be specified. Exiting.\n')
 } else if ('generax_nhx' %in% names(args)) {
@@ -130,6 +139,11 @@ if (('generax_nhx' %in% names(args))&('notung_parsable' %in% names(args))) {
 } else {
     stop('--notung_parsable or --generax_nhx should be specified. Exiting.\n')
 }
+
+
+##Add no scroll function
+noscrolls<-"no-scrolls"%in%names(args)
+##Add no scroll function
 
 sp_file = args[['species_tree']]
 max_age = as.numeric(args[['max_age']])
@@ -196,11 +210,18 @@ if (mode=='generax') {
     gn_node_table[,'event'] = 'S'
     gn_node_table[is.na(gn_node_table[['D']]),'D'] = 'N'
     gn_node_table[(gn_node_table[['D']]=='Y'),'event'] = 'D'
+    
+    ## Add Hs
+    gn_node_table[is.na(gn_node_table[['H']]),'H'] = 'N'
+    gn_node_table[(gn_node_table[['H']]!='N'),'event'] = 'H'
+    ## Add Hs
+    
     colnames(gn_node_table) = sub('^S$', 'lower_sp_node', colnames(gn_node_table))
     gn_node_table[,'upper_sp_node'] = gn_node_table[['lower_sp_node']]
     gn_node_table = gn_node_table[order(gn_node_table[['node']]),]
     gn_node_table[,'gn_node'] = c(gn_tree[['tip.label']], gn_tree[['node.label']])
     gn_node_table[(gn_node_table[['event']]=='D'),'upper_sp_node'] = NA
+    
     for (sp_node in unique(gn_node_table[['lower_sp_node']])) {
         node_num = rkftools::get_node_num_by_name(sp_tree, sp_node)
         parent_num = rkftools::get_parent_num(sp_tree, node_num)
@@ -211,9 +232,30 @@ if (mode=='generax') {
         conditions = (gn_node_table[['lower_sp_node']]==sp_node)
         conditions = conditions & (gn_node_table[['event']]=='D')
         gn_node_table[conditions,'upper_sp_node'] = parent_name
+        
+        ## Add Hs
+        for(H in which(gn_node_table[['lower_sp_node']]==sp_node&gn_node_table[['event']]=='H')){
+            donor_node = sub('.*@(.*)@.*','\\1',gn_node_table[H,'H'])
+            donor_num = rkftools::get_node_num_by_name(sp_tree, donor_node)
+            
+            donor_parent_num = rkftools::get_parent_num(sp_tree, donor_num)
+            donor_parent_name = rkftools::get_node_name_by_num(sp_tree, donor_parent_num)
+            
+            node_age = rkftools::get_node_age(sp_tree, node_num)
+            parent_age = rkftools::get_node_age(sp_tree, parent_num)
+            donor_age = rkftools::get_node_age(sp_tree,donor_num)
+            donor_parent_age = rkftools::get_node_age(sp_tree,donor_parent_num)
+            
+            gn_node_table[H,'lower_sp_node'] = ifelse(node_age>donor_age, sp_node, donor_node)
+            gn_node_table[H,'upper_sp_node'] = ifelse(parent_age<donor_parent_age, parent_name, donor_parent_name)
+        }
+        ## Add Hs
+        
+        
     }
     gn_node_table[,'lower_age'] = NA
     gn_node_table[,'upper_age'] = NA
+    
     for (sp_node in sp_node_table[['node']]) {
         node_age = as.numeric(sp_node_table[(sp_node_table[['node']]==sp_node),'age'])
         conditions = (gn_node_table[['lower_sp_node']]==sp_node)
@@ -222,6 +264,7 @@ if (mode=='generax') {
         gn_node_table[conditions,'lower_age'] = node_age
         gn_node_table[conditions,'upper_age'] = node_age
     }
+    
     gn_node_table[,'gn_node_num'] = rkftools::get_node_num_by_name(gn_tree, gn_node_table[['gn_node']])
     gn_node_table = data.frame(gn_node_table[,cols], stringsAsFactors=FALSE)
 } else if (mode=='notung') {
@@ -283,8 +326,15 @@ if (run_mode=='debug') {
 cat('End: gene tree processing', '\n\n')
 
 # Calibration node check
-if ((sum(gn_node_table[['event']]=="D") > 0)&(any(is.na(gn_node_table[['upper_age']])))) {
-    gn_spp = unique(get_species_names(gn_tree))
+
+if ((sum(gn_node_table[['event']]%in%c("D","H")) > 0)&(any(is.na(gn_node_table[['upper_age']])))) {
+    if(noscrolls){
+      gn_spp = unique(get_species_names_noscrolls(gn_tree))
+      ##Include this so I don't need to recode my speciesname
+    }else{
+      gn_spp = unique(rkftools::get_species_names(gn_tree))
+    }
+    
     num_sp = length(gn_spp)
     cat('# species in the gene tree:', num_sp, '\n')
     cat('Species in the gene tree:', paste(gn_spp, collapse=', '), '\n')
@@ -322,6 +372,8 @@ if (run_mode=='debug') {
 
 droppable_nodes = c()
 flag_first = TRUE
+
+
 for (gn_node_num in gn_node_table[['gn_node_num']]) {
     if (gn_node_num==root_num) {
         next
@@ -348,8 +400,17 @@ gn_node_table_dropped = gn_node_table[(!gn_node_table[['gn_node_num']] %in% drop
 gn_node_table_dropped = gn_node_table_dropped[(gn_node_table_dropped[,'gn_node_num']>ape::Ntip(gn_tree)),] # Drop leaves
 num_constrained_speciation = sum(grepl('^S', gn_node_table_dropped[,'event']))
 num_constrained_duplication = sum(grepl('^D', gn_node_table_dropped[,'event']))
+
+## Add Hs
+num_constrained_transfer = sum(grepl('^H', gn_node_table_dropped[,'event']))
+## Add Hs
+
 cat('Number of constrained speciation nodes:', num_constrained_speciation, '\n')
 cat('Number of constrained duplication nodes:', num_constrained_duplication, '\n')
+
+## Add Hs
+cat('Number of constrained transfer nodes:', num_constrained_transfer, '\n')
+## Add Hs
 
 # Calibration table
 calibration_table = data.frame(
