@@ -235,19 +235,19 @@ if (mode=='generax') {
         
         ## Add Hs
         for(H in which(gn_node_table[['lower_sp_node']]==sp_node&gn_node_table[['event']]=='H')){
-            donor_node = sub('.*@(.*)@.*','\\1',gn_node_table[H,'H'])
-            donor_num = rkftools::get_node_num_by_name(sp_tree, donor_node)
+            receiver_node = sub('.*@(.*)@.*','\\1',gn_node_table[H,'H'])
+            receiver_num = rkftools::get_node_num_by_name(sp_tree, receiver_node)
             
-            donor_parent_num = rkftools::get_parent_num(sp_tree, donor_num)
-            donor_parent_name = rkftools::get_node_name_by_num(sp_tree, donor_parent_num)
+            receiver_parent_num = rkftools::get_parent_num(sp_tree, receiver_num)
+            receiver_parent_name = rkftools::get_node_name_by_num(sp_tree, receiver_parent_num)
             
             node_age = rkftools::get_node_age(sp_tree, node_num)
             parent_age = rkftools::get_node_age(sp_tree, parent_num)
-            donor_age = rkftools::get_node_age(sp_tree,donor_num)
-            donor_parent_age = rkftools::get_node_age(sp_tree,donor_parent_num)
+            receiver_age = rkftools::get_node_age(sp_tree,receiver_num)
+            receiver_parent_age = rkftools::get_node_age(sp_tree,receiver_parent_num)
             
-            gn_node_table[H,'lower_sp_node'] = ifelse(node_age>donor_age, sp_node, donor_node)
-            gn_node_table[H,'upper_sp_node'] = ifelse(parent_age<donor_parent_age, parent_name, donor_parent_name)
+            gn_node_table[H,'lower_sp_node'] = ifelse(node_age>receiver_age, sp_node, receiver_node)
+            gn_node_table[H,'upper_sp_node'] = ifelse(parent_age<receiver_parent_age, parent_name, receiver_parent_name)
         }
         ## Add Hs
         
