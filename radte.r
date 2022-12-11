@@ -448,11 +448,19 @@ if (all(gn_node_table$lower_age==gn_node_table$upper_age)) {
     cat("Constrained nodes:", calibrated_node, '\n')
     cat("All nodes are speciation nodes. Transferring node ages from species tree without age inference by chronos.", '\n')
     dup_constraint = NA
-    gn_spp = c()
-    for (gn_gene in gn_tree$tip.label) {
-        pos_underbar = gregexpr("_", gn_gene)[[1]]
-        gn_sp = substring(gn_gene, 1, pos_underbar[length(pos_underbar)]-1)
+    if(noscrolls){
+      gn_spp = unique(sapply(strsplit(gn_tree$tip.label,"_"),function(x)x[1]))
+      ##Include this so I don't need to recode my speciesname
+    }else{
+      gn_spp = c()
+      for (gn_gene in gn_tree$tip.label) {
+        
+          pos_underbar = gregexpr("_", gn_gene)[[1]]
+          gn_sp = substring(gn_gene, 1, pos_underbar[length(pos_underbar)]-1)
+          
+        
         gn_spp = c(gn_spp, gn_sp)
+      }
     }
     drop_spp = sp_tree$tip.label[! sp_tree$tip.label %in% gn_spp]
     if (length(drop_spp) > 0) {
